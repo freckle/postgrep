@@ -19,6 +19,7 @@ extra-source-files:
 dependencies:
   - base >= 4.8 && < 5
   - attoparsec
+  - text
 
 library:
   source-dirs:
