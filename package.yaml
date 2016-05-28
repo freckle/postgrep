@@ -1,0 +1,44 @@
+name: postgrep
+version: "0.1.0"
+synopsis: Tools to parse potgres logs
+description: Tools to parse potgres logs
+category: PostgreSQL
+author: David Reaver
+maintainer: johndreaver@gmail.com
+stability: experimental
+license: MIT
+license-file: LICENSE.md
+
+github: frontrowed/postgrep
+
+extra-source-files:
+  - CHANGELOG.md
+  - README.md
+  - stack.yaml
+
+dependencies:
+  - base >= 4.8 && < 5
+  - attoparsec
+
+library:
+  source-dirs:
+    - src
+  ghc-options: -Wall
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - tests
+    dependencies:
+      - base
+      - postgrep
+      - hspec
+      - HUnit
+  style:
+    main: HLint.hs
+    source-dirs:
+      - tests
+    dependencies:
+      - base
+      - hlint
