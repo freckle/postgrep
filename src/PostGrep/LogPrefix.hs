@@ -7,6 +7,7 @@ module PostGrep.LogPrefix
   ( LogLinePrefix (..)
   , rdsPrefix
   , parseLogLinePrefix
+  , LogLinePrefixComponent (..)
   , LogLinePrefixEscape (..)
   , logLinePrefixEscapeChar
   ) where
@@ -29,68 +30,68 @@ rdsPrefix =
 
 data LogLinePrefixComponent
   = LogLineLiteral T.Text
-  | LogLineEscapeChar LogLinePrefixEscape
+  | LogLineEscape LogLinePrefixEscape
   deriving (Show)
 
 -- | Type enumerating the possible escape characters in a log_line_prefix.
 data LogLinePrefixEscape
-  = ApplicationName
-  | UserName
-  | DatabaseName
-  | RemoteHostWithPort
-  | RemoteHost
-  | ProcessID
-  | TimestampWithoutMilliseconds
-  | TimestampWithMilliseconds
-  | CommandTag
-  | SQLStateErrorCode
-  | SessionID
-  | LogLineNumber
-  | ProcessStartTimestamp
-  | VirtualTransactionID
-  | TransactionID
-  | NonSessionStop
-  | LiteralPercent
+  = ApplicationNameEscape
+  | UserNameEscape
+  | DatabaseNameEscape
+  | RemoteHostWithPortEscape
+  | RemoteHostEscape
+  | ProcessIDEscape
+  | TimestampWithoutMillisecondsEscape
+  | TimestampWithMillisecondsEscape
+  | CommandTagEscape
+  | SQLStateErrorCodeEscape
+  | SessionIDEscape
+  | LogLineNumberEscape
+  | ProcessStartTimestampEscape
+  | VirtualTransactionIDEscape
+  | TransactionIDEscape
+  | NonSessionStopEscape
+  | LiteralPercentEscape
   deriving (Show)
 
 -- | The corresponding escape character for each 'LogLinePrefixEscape'
 logLinePrefixEscapeChar :: LogLinePrefixEscape -> Char
-logLinePrefixEscapeChar ApplicationName = 'a'
-logLinePrefixEscapeChar UserName = 'u'
-logLinePrefixEscapeChar DatabaseName = 'd'
-logLinePrefixEscapeChar RemoteHostWithPort = 'r'
-logLinePrefixEscapeChar RemoteHost = 'h'
-logLinePrefixEscapeChar ProcessID = 'p'
-logLinePrefixEscapeChar TimestampWithoutMilliseconds = 't'
-logLinePrefixEscapeChar TimestampWithMilliseconds = 'm'
-logLinePrefixEscapeChar CommandTag = 'i'
-logLinePrefixEscapeChar SQLStateErrorCode = 'e'
-logLinePrefixEscapeChar SessionID = 'c'
-logLinePrefixEscapeChar LogLineNumber = 'l'
-logLinePrefixEscapeChar ProcessStartTimestamp = 's'
-logLinePrefixEscapeChar VirtualTransactionID = 'v'
-logLinePrefixEscapeChar TransactionID = 'x'
-logLinePrefixEscapeChar NonSessionStop = 'q'
-logLinePrefixEscapeChar LiteralPercent = '%'
+logLinePrefixEscapeChar ApplicationNameEscape = 'a'
+logLinePrefixEscapeChar UserNameEscape = 'u'
+logLinePrefixEscapeChar DatabaseNameEscape = 'd'
+logLinePrefixEscapeChar RemoteHostWithPortEscape = 'r'
+logLinePrefixEscapeChar RemoteHostEscape = 'h'
+logLinePrefixEscapeChar ProcessIDEscape = 'p'
+logLinePrefixEscapeChar TimestampWithoutMillisecondsEscape = 't'
+logLinePrefixEscapeChar TimestampWithMillisecondsEscape = 'm'
+logLinePrefixEscapeChar CommandTagEscape = 'i'
+logLinePrefixEscapeChar SQLStateErrorCodeEscape = 'e'
+logLinePrefixEscapeChar SessionIDEscape = 'c'
+logLinePrefixEscapeChar LogLineNumberEscape = 'l'
+logLinePrefixEscapeChar ProcessStartTimestampEscape = 's'
+logLinePrefixEscapeChar VirtualTransactionIDEscape = 'v'
+logLinePrefixEscapeChar TransactionIDEscape = 'x'
+logLinePrefixEscapeChar NonSessionStopEscape = 'q'
+logLinePrefixEscapeChar LiteralPercentEscape = '%'
 
 charToEscape :: Char -> Maybe LogLinePrefixEscape
-charToEscape 'a' = Just ApplicationName
-charToEscape 'u' = Just UserName
-charToEscape 'd' = Just DatabaseName
-charToEscape 'r' = Just RemoteHostWithPort
-charToEscape 'h' = Just RemoteHost
-charToEscape 'p' = Just ProcessID
-charToEscape 't' = Just TimestampWithoutMilliseconds
-charToEscape 'm' = Just TimestampWithMilliseconds
-charToEscape 'i' = Just CommandTag
-charToEscape 'e' = Just SQLStateErrorCode
-charToEscape 'c' = Just SessionID
-charToEscape 'l' = Just LogLineNumber
-charToEscape 's' = Just ProcessStartTimestamp
-charToEscape 'v' = Just VirtualTransactionID
-charToEscape 'x' = Just TransactionID
-charToEscape 'q' = Just NonSessionStop
-charToEscape '%' = Just LiteralPercent
+charToEscape 'a' = Just ApplicationNameEscape
+charToEscape 'u' = Just UserNameEscape
+charToEscape 'd' = Just DatabaseNameEscape
+charToEscape 'r' = Just RemoteHostWithPortEscape
+charToEscape 'h' = Just RemoteHostEscape
+charToEscape 'p' = Just ProcessIDEscape
+charToEscape 't' = Just TimestampWithoutMillisecondsEscape
+charToEscape 'm' = Just TimestampWithMillisecondsEscape
+charToEscape 'i' = Just CommandTagEscape
+charToEscape 'e' = Just SQLStateErrorCodeEscape
+charToEscape 'c' = Just SessionIDEscape
+charToEscape 'l' = Just LogLineNumberEscape
+charToEscape 's' = Just ProcessStartTimestampEscape
+charToEscape 'v' = Just VirtualTransactionIDEscape
+charToEscape 'x' = Just TransactionIDEscape
+charToEscape 'q' = Just NonSessionStopEscape
+charToEscape '%' = Just LiteralPercentEscape
 charToEscape _ = Nothing
 
 parseLogLinePrefix :: T.Text -> Either String LogLinePrefix
@@ -111,4 +112,4 @@ parseEscape = do
   escapeChar <- anyChar
   case charToEscape escapeChar of
     Nothing -> fail $ "Unknown escape character '" ++ [escapeChar] ++ "'"
-    (Just e) -> return $ LogLineEscapeChar e
+    (Just e) -> return $ LogLineEscape e
