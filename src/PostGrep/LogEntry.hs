@@ -61,8 +61,8 @@ prefixLiteralRegex (x:xs) = x : prefixLiteralRegex xs
 
 prefixEscapeRegex :: LogLinePrefixEscape -> String
 prefixEscapeRegex ApplicationNameEscape = ".*"
-prefixEscapeRegex UserNameEscape = ".*"
-prefixEscapeRegex DatabaseNameEscape = ".*"
+prefixEscapeRegex UserNameEscape = "[0-9a-zA-Z\\_\\[\\]\\-\\.]*"
+prefixEscapeRegex DatabaseNameEscape = "[0-9a-zA-Z\\_\\[\\]\\-\\.]*"
 prefixEscapeRegex RemoteHostWithPortEscape = prefixEscapeRegex RemoteHostEscape ++ "[\\(\\d\\)]*"
 prefixEscapeRegex RemoteHostEscape =
   "(?:[a-zA-Z0-9\\-\\.]+|\\[local\\]|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|[0-9a-fA-F:]+)?"

@@ -22,7 +22,7 @@ spec =
     it "parses prefixes with special chars in variables" $ do
       let (Right prefix) = parseLogLinePrefix "%a[%d]"
           parser = prefixRegexParser prefix
-      parsePrefix parser "stupid|[app_name][stupid:db(name)]" `shouldBe`
+      parsePrefix parser "stupid|[app_name][stupid-db.name-]" `shouldBe`
         Just [ ApplicationName "stupid|[app_name]"
-             , DatabaseName "stupid:db(name)"
+             , DatabaseName "stupid-db.name-"
              ]
