@@ -2,9 +2,10 @@
 
 module PostGrep.LogEntry
   ( LogEntryComponent (..)
-  , prefixRegexParser
-  , prefixRegexString
-  , parsePrefix
+  , LogLevel (..)
+  , LogLineParser
+  , logLineParser
+  , parseLine
   ) where
 
 import Data.Array (elems)
@@ -29,70 +30,53 @@ data LogEntryComponent
   | ProcessStartTimestamp T.Text
   | VirtualTransactionID T.Text
   | TransactionID T.Text
-  | Message T.Text
+  | LogLevel LogLevel
+  | Statement T.Text
   deriving (Show, Eq)
 
-data PrefixRegexParser =
-  PrefixRegexParser
-  { prefixRegexParserRegex :: Regex
-  , prefixRegexParserPrefix :: LogLinePrefix
-  }
+data LogLevel
+  = LOG
+  | WARNING
+  | ERROR
+  | FATAL
+  | PANIC
+  | DETAIL
+  | STATEMENT
+  | HINT
+  | CONTEXT
+  | LOCATION
+  deriving (Show, Eq, Read)
 
-prefixRegexParser :: LogLinePrefix -> PrefixRegexParser
-prefixRegexParser pre = PrefixRegexParser regex pre
-  where regex = makeRegex $ prefixRegexString pre
+data LogLineParseComponent
+  = PrefixEscape LogLinePrefixEscape
+  | LogLevelComponent
+  | StatementComponent
 
-prefixRegexString :: LogLinePrefix -> String
-prefixRegexString (LogLinePrefix components) = concatMap prefixComponentRegex components
+data LogLineParser = LogLineParser [LogLineParseComponent] Regex
 
-prefixComponentRegex :: LogLinePrefixComponent -> String
-prefixComponentRegex (LogLineLiteral lit) = prefixLiteralRegex $ T.unpack lit
-prefixComponentRegex (LogLineEscape escape) = "(" ++ prefixEscapeRegex escape ++ ")"
+logLineParser :: LogLinePrefix -> LogLineParser
+logLineParser prefix@(LogLinePrefix prefixComponents) = LogLineParser components regex
+  where escapeComponents = map PrefixEscape $ catMaybes $ fmap getEscape prefixComponents
+        components = escapeComponents ++ [LogLevelComponent, StatementComponent]
+        regex = makeRegex $ prefixRegexString prefix ++ logLevelRegex ++ statementRegex
 
--- | Escapes parts of literals in the prefix so they don't confuse the regex.
-prefixLiteralRegex :: String -> String
-prefixLiteralRegex [] = []
-prefixLiteralRegex ('[':xs) = '\\' : '[' : prefixLiteralRegex xs
-prefixLiteralRegex (']':xs) = '\\' : ']' : prefixLiteralRegex xs
-prefixLiteralRegex (')':xs) = '\\' : ')' : prefixLiteralRegex xs
-prefixLiteralRegex ('(':xs) = '\\' : '(' : prefixLiteralRegex xs
-prefixLiteralRegex ('|':xs) = '\\' : '|' : prefixLiteralRegex xs
-prefixLiteralRegex (x:xs) = x : prefixLiteralRegex xs
+logLevelRegex :: String
+logLevelRegex = "\\s*(LOG|WARNING|ERROR|FATAL|PANIC|DETAIL|STATEMENT|HINT|CONTEXT|LOCATION)"
 
-prefixEscapeRegex :: LogLinePrefixEscape -> String
-prefixEscapeRegex ApplicationNameEscape = ".*"
-prefixEscapeRegex UserNameEscape = "[0-9a-zA-Z\\_\\[\\]\\-\\.]*"
-prefixEscapeRegex DatabaseNameEscape = "[0-9a-zA-Z\\_\\[\\]\\-\\.]*"
-prefixEscapeRegex RemoteHostWithPortEscape = prefixEscapeRegex RemoteHostEscape ++ "[\\(\\d\\)]*"
-prefixEscapeRegex RemoteHostEscape =
-  "(?:[a-zA-Z0-9\\-\\.]+|\\[local\\]|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|[0-9a-fA-F:]+)?"
-prefixEscapeRegex ProcessIDEscape = "\\d+"
-prefixEscapeRegex TimestampWithoutMillisecondsEscape =
-  "(?:\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})(?: [A-Z\\+\\-\\d]{3,6})?"
-prefixEscapeRegex TimestampWithMillisecondsEscape =
-  "(?:\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})\\.\\d+(?: [A-Z\\+\\-\\d]{3,6})?"
-prefixEscapeRegex CommandTagEscape = "[0-9a-zA-Z\\.\\-\\_]*"
-prefixEscapeRegex SQLStateErrorCodeEscape = "[0-9a-zA-Z]+"
-prefixEscapeRegex SessionIDEscape = "[0-9a-f\\.]*"
-prefixEscapeRegex LogLineNumberEscape = "\\d+"
-prefixEscapeRegex ProcessStartTimestampEscape =
-  "(?:\\d{4}-\\d{2}-\\d{2} \\d{2}):\\d{2}:\\d{2}(?: [A-Z\\d]{3,6})?"
-prefixEscapeRegex VirtualTransactionIDEscape = "[0-9a-f\\.\\/]*"
-prefixEscapeRegex TransactionIDEscape = "[0-9a-f\\.\\/]*"
-prefixEscapeRegex NonSessionStopEscape = ""
-prefixEscapeRegex LiteralPercentEscape = "%"
+statementRegex :: String
+statementRegex = "\\s*(.*)"
 
-parsePrefix :: PrefixRegexParser -> T.Text -> Maybe [LogEntryComponent]
-parsePrefix parser t =
-  case parsePrefix' t (prefixRegexParserRegex parser) of
+parseLine :: LogLineParser -> T.Text -> Maybe [LogEntryComponent]
+parseLine (LogLineParser components regex) t =
+  case parseLine' t regex of
     [] -> Nothing
     [_] -> Nothing
     -- In the pcre regex lib, the first match is the entire string, so we throw
     -- it away as we only want the specific groups.
-    (_:xs) -> Just $ parsedComponents (prefixRegexParserPrefix parser) xs
+    (_:xs) -> Just $ parsedComponents components xs
 
-parsePrefix' :: T.Text -> Regex -> [String]
-parsePrefix' t regex =
+parseLine' :: T.Text -> Regex -> [String]
+parseLine' t regex =
   case matches of
     [] -> []
     (x:_) -> map fst $ elems x
@@ -100,26 +84,30 @@ parsePrefix' t regex =
 
 -- | Transforms the list of matches to log entry components by pairing matches
 -- with prefix strings.
-parsedComponents :: LogLinePrefix -> [String] -> [LogEntryComponent]
-parsedComponents (LogLinePrefix prefixComponents) matches =
-  concatMap (uncurry matchToComponent) (zip escapeComponents matches)
-  where escapeComponents = catMaybes $ fmap getEscape prefixComponents
+parsedComponents :: [LogLineParseComponent] -> [String] -> [LogEntryComponent]
+parsedComponents components matches =
+  concatMap (uncurry matchToComponent) (zip components matches)
 
-matchToComponent :: LogLinePrefixEscape -> String -> [LogEntryComponent]
-matchToComponent ApplicationNameEscape m = [ApplicationName $ T.pack m]
-matchToComponent UserNameEscape m = [UserName $ T.pack m]
-matchToComponent DatabaseNameEscape m = [DatabaseName $ T.pack m]
-matchToComponent RemoteHostWithPortEscape m = [RemoteHost $ T.pack m]
-matchToComponent RemoteHostEscape m = [RemoteHost $ T.pack m]
-matchToComponent ProcessIDEscape m = [ProcessID $ T.pack m]
-matchToComponent TimestampWithoutMillisecondsEscape m = [Timestamp $ T.pack m]
-matchToComponent TimestampWithMillisecondsEscape m = [Timestamp $ T.pack m]
-matchToComponent CommandTagEscape m = [CommandTag $ T.pack m]
-matchToComponent SQLStateErrorCodeEscape m = [SQLStateErrorCode $ T.pack m]
-matchToComponent SessionIDEscape m = [SessionID $ T.pack m]
-matchToComponent LogLineNumberEscape m = [LogLineNumber $ T.pack m]
-matchToComponent ProcessStartTimestampEscape m = [ProcessStartTimestamp $ T.pack m]
-matchToComponent VirtualTransactionIDEscape m = [VirtualTransactionID $ T.pack m]
-matchToComponent TransactionIDEscape m = [TransactionID $ T.pack m]
-matchToComponent NonSessionStopEscape _ = []
-matchToComponent LiteralPercentEscape _ = []
+matchToComponent :: LogLineParseComponent -> String -> [LogEntryComponent]
+matchToComponent (PrefixEscape esc) m = matchEscapeToComponent esc m
+matchToComponent LogLevelComponent m = [LogLevel (read m)]
+matchToComponent StatementComponent m = [Statement (T.pack m)]
+
+matchEscapeToComponent :: LogLinePrefixEscape -> String -> [LogEntryComponent]
+matchEscapeToComponent ApplicationNameEscape m = [ApplicationName $ T.pack m]
+matchEscapeToComponent UserNameEscape m = [UserName $ T.pack m]
+matchEscapeToComponent DatabaseNameEscape m = [DatabaseName $ T.pack m]
+matchEscapeToComponent RemoteHostWithPortEscape m = [RemoteHost $ T.pack m]
+matchEscapeToComponent RemoteHostEscape m = [RemoteHost $ T.pack m]
+matchEscapeToComponent ProcessIDEscape m = [ProcessID $ T.pack m]
+matchEscapeToComponent TimestampWithoutMillisecondsEscape m = [Timestamp $ T.pack m]
+matchEscapeToComponent TimestampWithMillisecondsEscape m = [Timestamp $ T.pack m]
+matchEscapeToComponent CommandTagEscape m = [CommandTag $ T.pack m]
+matchEscapeToComponent SQLStateErrorCodeEscape m = [SQLStateErrorCode $ T.pack m]
+matchEscapeToComponent SessionIDEscape m = [SessionID $ T.pack m]
+matchEscapeToComponent LogLineNumberEscape m = [LogLineNumber $ T.pack m]
+matchEscapeToComponent ProcessStartTimestampEscape m = [ProcessStartTimestamp $ T.pack m]
+matchEscapeToComponent VirtualTransactionIDEscape m = [VirtualTransactionID $ T.pack m]
+matchEscapeToComponent TransactionIDEscape m = [TransactionID $ T.pack m]
+matchEscapeToComponent NonSessionStopEscape _ = []
+matchEscapeToComponent LiteralPercentEscape _ = []

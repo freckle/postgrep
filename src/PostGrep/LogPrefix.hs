@@ -11,6 +11,7 @@ module PostGrep.LogPrefix
   , LogLinePrefixEscape (..)
   , getEscape
   , logLinePrefixEscapeChar
+  , prefixRegexString
   ) where
 
 import Control.Applicative ((<|>))
@@ -118,3 +119,44 @@ parseEscape = do
   case charToEscape escapeChar of
     Nothing -> fail $ "Unknown escape character '" ++ [escapeChar] ++ "'"
     (Just e) -> return $ LogLineEscape e
+
+
+prefixRegexString :: LogLinePrefix -> String
+prefixRegexString (LogLinePrefix components) = concatMap prefixComponentRegex components
+
+prefixComponentRegex :: LogLinePrefixComponent -> String
+prefixComponentRegex (LogLineLiteral lit) = prefixLiteralRegex $ T.unpack lit
+prefixComponentRegex (LogLineEscape escape) = "(" ++ prefixEscapeRegex escape ++ ")"
+
+-- | Escapes parts of literals in the prefix so they don't confuse the regex.
+prefixLiteralRegex :: String -> String
+prefixLiteralRegex [] = []
+prefixLiteralRegex ('[':xs) = '\\' : '[' : prefixLiteralRegex xs
+prefixLiteralRegex (']':xs) = '\\' : ']' : prefixLiteralRegex xs
+prefixLiteralRegex (')':xs) = '\\' : ')' : prefixLiteralRegex xs
+prefixLiteralRegex ('(':xs) = '\\' : '(' : prefixLiteralRegex xs
+prefixLiteralRegex ('|':xs) = '\\' : '|' : prefixLiteralRegex xs
+prefixLiteralRegex (x:xs) = x : prefixLiteralRegex xs
+
+prefixEscapeRegex :: LogLinePrefixEscape -> String
+prefixEscapeRegex ApplicationNameEscape = ".*"
+prefixEscapeRegex UserNameEscape = "[0-9a-zA-Z\\_\\[\\]\\-\\.]*"
+prefixEscapeRegex DatabaseNameEscape = "[0-9a-zA-Z\\_\\[\\]\\-\\.]*"
+prefixEscapeRegex RemoteHostWithPortEscape = prefixEscapeRegex RemoteHostEscape ++ "[\\(\\d\\)]*"
+prefixEscapeRegex RemoteHostEscape =
+  "(?:[a-zA-Z0-9\\-\\.]+|\\[local\\]|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|[0-9a-fA-F:]+)?"
+prefixEscapeRegex ProcessIDEscape = "\\d+"
+prefixEscapeRegex TimestampWithoutMillisecondsEscape =
+  "(?:\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})(?: [A-Z\\+\\-\\d]{3,6})?"
+prefixEscapeRegex TimestampWithMillisecondsEscape =
+  "(?:\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})\\.\\d+(?: [A-Z\\+\\-\\d]{3,6})?"
+prefixEscapeRegex CommandTagEscape = "[0-9a-zA-Z\\.\\-\\_]*"
+prefixEscapeRegex SQLStateErrorCodeEscape = "[0-9a-zA-Z]+"
+prefixEscapeRegex SessionIDEscape = "[0-9a-f\\.]*"
+prefixEscapeRegex LogLineNumberEscape = "\\d+"
+prefixEscapeRegex ProcessStartTimestampEscape =
+  "(?:\\d{4}-\\d{2}-\\d{2} \\d{2}):\\d{2}:\\d{2}(?: [A-Z\\d]{3,6})?"
+prefixEscapeRegex VirtualTransactionIDEscape = "[0-9a-f\\.\\/]*"
+prefixEscapeRegex TransactionIDEscape = "[0-9a-f\\.\\/]*"
+prefixEscapeRegex NonSessionStopEscape = ""
+prefixEscapeRegex LiteralPercentEscape = "%"
