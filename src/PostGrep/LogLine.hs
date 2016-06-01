@@ -1,4 +1,4 @@
--- | Main module to parse log entries.
+-- | Main module to parse log lines.
 
 module PostGrep.LogLine
   ( LogEntryComponent (..)
