@@ -61,7 +61,7 @@ logLineParser prefix@(LogLinePrefix prefixComponents) = LogLineParser components
         regex = makeRegex $ prefixRegexString prefix ++ logLevelRegex ++ statementRegex
 
 logLevelRegex :: String
-logLevelRegex = "\\s*(LOG|WARNING|ERROR|FATAL|PANIC|DETAIL|STATEMENT|HINT|CONTEXT|LOCATION)"
+logLevelRegex = "\\s*(LOG|WARNING|ERROR|FATAL|PANIC|DETAIL|STATEMENT|HINT|CONTEXT|LOCATION):"
 
 statementRegex :: String
 statementRegex = "\\s*(.*)"
