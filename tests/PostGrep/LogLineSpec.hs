@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module PostGrep.LogEntrySpec where
+module PostGrep.LogLineSpec where
 
-import PostGrep.LogEntry
+import PostGrep.LogLine
 import PostGrep.LogPrefix
 
 import Test.Hspec

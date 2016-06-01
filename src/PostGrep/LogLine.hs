@@ -1,6 +1,6 @@
 -- | Main module to parse log entries.
 
-module PostGrep.LogEntry
+module PostGrep.LogLine
   ( LogEntryComponent (..)
   , LogLevel (..)
   , LogLineParser
