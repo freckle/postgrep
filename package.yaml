@@ -18,7 +18,9 @@ extra-source-files:
 
 dependencies:
   - base >= 4.8 && < 5
+  - array
   - attoparsec
+  - regex-pcre-builtin
   - text
 
 library:
@@ -30,6 +32,7 @@ tests:
   spec:
     main: Spec.hs
     source-dirs:
+      - src
       - tests
     dependencies:
       - base

@@ -9,6 +9,7 @@ module PostGrep.LogPrefix
   , parseLogLinePrefix
   , LogLinePrefixComponent (..)
   , LogLinePrefixEscape (..)
+  , getEscape
   , logLinePrefixEscapeChar
   ) where
 
@@ -19,7 +20,7 @@ import qualified Data.Text as T
 -- | Represents a parsed log_line_prefix. This is used to extract data from log
 -- entries.
 newtype LogLinePrefix = LogLinePrefix { unLogLinePrefix :: [LogLinePrefixComponent] }
-                      deriving (Show)
+                      deriving (Show, Eq)
 
 -- | Default prefix for AWS RDS.
 rdsPrefix :: LogLinePrefix
@@ -31,7 +32,7 @@ rdsPrefix =
 data LogLinePrefixComponent
   = LogLineLiteral T.Text
   | LogLineEscape LogLinePrefixEscape
-  deriving (Show)
+  deriving (Show, Eq)
 
 -- | Type enumerating the possible escape characters in a log_line_prefix.
 data LogLinePrefixEscape
@@ -52,7 +53,11 @@ data LogLinePrefixEscape
   | TransactionIDEscape
   | NonSessionStopEscape
   | LiteralPercentEscape
-  deriving (Show)
+  deriving (Show, Eq)
+
+getEscape :: LogLinePrefixComponent -> Maybe LogLinePrefixEscape
+getEscape (LogLineLiteral _) = Nothing
+getEscape (LogLineEscape e) = Just e
 
 -- | The corresponding escape character for each 'LogLinePrefixEscape'
 logLinePrefixEscapeChar :: LogLinePrefixEscape -> Char
@@ -95,13 +100,13 @@ charToEscape '%' = Just LiteralPercentEscape
 charToEscape _ = Nothing
 
 parseLogLinePrefix :: T.Text -> Either String LogLinePrefix
-parseLogLinePrefix = parseOnly prefixParser
+parseLogLinePrefix = parseOnly (prefixParser <* endOfInput)
 
 prefixParser :: Parser LogLinePrefix
 prefixParser = LogLinePrefix <$> many1 componentParser
 
 componentParser :: Parser LogLinePrefixComponent
-componentParser = parseEscape <|> parseLiteral
+componentParser = parseLiteral <|> parseEscape
 
 parseLiteral :: Parser LogLinePrefixComponent
 parseLiteral = LogLineLiteral <$> takeWhile1 (/= '%')
