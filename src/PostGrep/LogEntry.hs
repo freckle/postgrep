@@ -8,9 +8,11 @@ module PostGrep.LogEntry
   , parseLogLines
   ) where
 
+import qualified Data.ByteString as BS
 import Data.List (foldl')
 import Data.Monoid ((<>))
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 
 import PostGrep.LogLine
 
@@ -82,15 +84,15 @@ data LogParseState =
   , previousEntries :: [LogEntry]
   } deriving (Show)
 
-parseLogLines :: LogLineParser -> [T.Text] -> [LogEntry]
+parseLogLines :: LogLineParser -> [BS.ByteString] -> [LogEntry]
 parseLogLines parser ts = reverse allEntries
   where LogParseState{..} = foldl' (parseLogLine parser) (LogParseState [] []) ts
         allEntries = maybeAddEntry currentEntryComponents previousEntries
 
-parseLogLine :: LogLineParser -> LogParseState -> T.Text -> LogParseState
+parseLogLine :: LogLineParser -> LogParseState -> BS.ByteString -> LogParseState
 parseLogLine parser LogParseState{..} line =
   case parseLine parser line of
-    Nothing -> LogParseState (currentEntryComponents ++ [Statement line]) previousEntries
+    Nothing -> LogParseState (currentEntryComponents ++ [Statement $ TE.decodeUtf8 line]) previousEntries
     (Just newComponents) ->
       LogParseState newComponents (maybeAddEntry currentEntryComponents previousEntries)
 
