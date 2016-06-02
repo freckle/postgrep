@@ -34,6 +34,7 @@ data LogEntryComponent
   | VirtualTransactionID T.Text
   | TransactionID T.Text
   | LogLevel LogLevel
+  | Duration T.Text
   | Statement T.Text
   deriving (Show, Eq)
 
@@ -63,6 +64,7 @@ parseLine (LogLineParser regex consumers) t =
 data LogLineParseComponent
   = PrefixComponent LogLinePrefixComponent
   | LogLevelComponent
+  | DurationComponent
   | StatementComponent
 
 -- | A pair of a compiled regex and a list of consumers for the matched groups
@@ -72,7 +74,7 @@ data LogLineParser = LogLineParser Regex [T.Text -> LogEntryComponent]
 logLineParser :: LogLinePrefix -> LogLineParser
 logLineParser (LogLinePrefix prefixComponents) = LogLineParser regex consumers
   where escapeComponents = map PrefixComponent prefixComponents
-        components = escapeComponents ++ [LogLevelComponent, StatementComponent]
+        components = escapeComponents ++ [LogLevelComponent, DurationComponent, StatementComponent]
         regex = compile (BSC.pack $ concatMap parseComponentRegex components) []
         consumers = concatMap parseComponentConsumer components
 
@@ -81,6 +83,8 @@ logLineParser (LogLinePrefix prefixComponents) = LogLineParser regex consumers
 parseComponentRegex :: LogLineParseComponent -> String
 parseComponentRegex LogLevelComponent =
   "\\s*(LOG|WARNING|ERROR|FATAL|PANIC|DETAIL|STATEMENT|HINT|CONTEXT|LOCATION):"
+parseComponentRegex DurationComponent =
+  "\\s*(?:duration: )?([\\d\\.]+ [a-z]+)?"
 parseComponentRegex StatementComponent =
   "\\s*(.*)"
 parseComponentRegex (PrefixComponent (LogLineLiteral lit)) =
@@ -135,6 +139,7 @@ prefixLiteralRegex (x:xs) = x : prefixLiteralRegex xs
 -- groups in the regex must match the number of consumers here.
 parseComponentConsumer :: LogLineParseComponent -> [T.Text -> LogEntryComponent]
 parseComponentConsumer LogLevelComponent = [LogLevel . read . T.unpack]
+parseComponentConsumer DurationComponent = [Duration]
 parseComponentConsumer StatementComponent = [Statement]
 parseComponentConsumer (PrefixComponent (LogLineLiteral _)) = []
 parseComponentConsumer (PrefixComponent (LogLineEscape ApplicationNameEscape)) = [ApplicationName]

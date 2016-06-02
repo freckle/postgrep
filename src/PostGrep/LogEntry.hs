@@ -34,6 +34,7 @@ data LogEntry =
   , logEntryTransactionID :: Maybe T.Text
   , logEntryLogLevel :: Maybe LogLevel
   , logEntryStatement :: Maybe T.Text
+  , logEntryDuration :: Maybe T.Text
   } deriving (Show, Eq)
 
 makeEntry :: [LogEntryComponent] -> LogEntry
@@ -56,6 +57,7 @@ makeEntry = foldl' modifyEntry emptyEntry
           , logEntryTransactionID = Nothing
           , logEntryLogLevel = Nothing
           , logEntryStatement = Nothing
+          , logEntryDuration = Nothing
           }
 
 modifyEntry :: LogEntry -> LogEntryComponent -> LogEntry
@@ -74,6 +76,7 @@ modifyEntry entry (ProcessStartTimestamp x) = entry { logEntryProcessStartTimest
 modifyEntry entry (VirtualTransactionID x) = entry { logEntryVirtualTransactionID = Just x }
 modifyEntry entry (TransactionID x) = entry { logEntryTransactionID = Just x }
 modifyEntry entry (LogLevel x) = entry { logEntryLogLevel = Just x }
+modifyEntry entry (Duration x) = entry { logEntryDuration = Just x }
 modifyEntry entry (Statement x) = entry { logEntryStatement = newStatement (logEntryStatement entry) }
   where newStatement Nothing = Just x
         newStatement (Just x') = Just (x' <> x)
