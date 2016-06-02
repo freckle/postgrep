@@ -3,6 +3,10 @@ machine:
     PATH: "$HOME/.local/bin:$PATH"
     STACK_VERSION: 1.1.2
 
+general:
+  artifacts:
+    - "~/postgrep/bench-output.html"
+
 dependencies:
   pre:
    - mkdir -p ~/.local/bin
@@ -12,8 +16,9 @@ dependencies:
     - "~/postgrep/.stack-work"
   override:
     - stack setup
-    - stack build --test --only-dependencies --no-run-tests --jobs=1
+    - stack build --only-dependencies --test --no-run-tests --bench --no-run-benchmarks --jobs=1
 
 test:
   override:
     - stack build --test --jobs=1
+    - stack bench --benchmark-arguments "--output=bench-output.html"

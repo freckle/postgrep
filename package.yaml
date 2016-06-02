@@ -46,3 +46,16 @@ tests:
     dependencies:
       - base
       - hlint
+
+benchmarks:
+  benchmarks:
+    dependencies:
+      - base
+      - postgrep
+      - criterion
+    ghc-options:
+      - -rtsopts
+      - -threaded
+      - -with-rtsopts=-N
+    main: Main.hs
+    source-dirs: benchmark
