@@ -22,6 +22,7 @@ dependencies:
   - attoparsec
   - bytestring
   - regex-pcre-builtin
+  - text
 
 library:
   source-dirs:

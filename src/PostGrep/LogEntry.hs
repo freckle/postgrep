@@ -8,30 +8,32 @@ module PostGrep.LogEntry
   , parseLogLines
   ) where
 
-import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString as BS
 import Data.List (foldl')
 import Data.Monoid ((<>))
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 
 import PostGrep.LogLine
 
 data LogEntry =
   LogEntry
-  { logEntryApplicationName :: Maybe BS.ByteString
-  , logEntryUserName :: Maybe BS.ByteString
-  , logEntryDatabaseName :: Maybe BS.ByteString
-  , logEntryRemoteHost :: Maybe BS.ByteString
-  , logEntryRemotePort :: Maybe BS.ByteString
-  , logEntryProcessID :: Maybe BS.ByteString
-  , logEntryTimestamp :: Maybe BS.ByteString
-  , logEntryCommandTag :: Maybe BS.ByteString
-  , logEntrySQLStateErrorCode :: Maybe BS.ByteString
-  , logEntrySessionID :: Maybe BS.ByteString
-  , logEntryLogLineNumber :: Maybe BS.ByteString
-  , logEntryProcessStartTimestamp :: Maybe BS.ByteString
-  , logEntryVirtualTransactionID :: Maybe BS.ByteString
-  , logEntryTransactionID :: Maybe BS.ByteString
+  { logEntryApplicationName :: Maybe T.Text
+  , logEntryUserName :: Maybe T.Text
+  , logEntryDatabaseName :: Maybe T.Text
+  , logEntryRemoteHost :: Maybe T.Text
+  , logEntryRemotePort :: Maybe T.Text
+  , logEntryProcessID :: Maybe T.Text
+  , logEntryTimestamp :: Maybe T.Text
+  , logEntryCommandTag :: Maybe T.Text
+  , logEntrySQLStateErrorCode :: Maybe T.Text
+  , logEntrySessionID :: Maybe T.Text
+  , logEntryLogLineNumber :: Maybe T.Text
+  , logEntryProcessStartTimestamp :: Maybe T.Text
+  , logEntryVirtualTransactionID :: Maybe T.Text
+  , logEntryTransactionID :: Maybe T.Text
   , logEntryLogLevel :: Maybe LogLevel
-  , logEntryStatement :: Maybe BS.ByteString
+  , logEntryStatement :: Maybe T.Text
   } deriving (Show, Eq)
 
 makeEntry :: [LogEntryComponent] -> LogEntry
@@ -90,7 +92,7 @@ parseLogLines parser ts = reverse allEntries
 parseLogLine :: LogLineParser -> LogParseState -> BS.ByteString -> LogParseState
 parseLogLine parser LogParseState{..} line =
   case parseLine parser line of
-    Nothing -> LogParseState (currentEntryComponents ++ [Statement line]) previousEntries
+    Nothing -> LogParseState (currentEntryComponents ++ [Statement $ TE.decodeUtf8 line]) previousEntries
     (Just newComponents) ->
       LogParseState newComponents (maybeAddEntry currentEntryComponents previousEntries)
 

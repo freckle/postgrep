@@ -15,9 +15,8 @@ module PostGrep.LogPrefix
   ) where
 
 import Control.Applicative ((<|>))
-import Data.Attoparsec.ByteString.Char8
-import qualified Data.ByteString.Char8 as BS
-import Data.Monoid ((<>))
+import Data.Attoparsec.Text
+import qualified Data.Text as T
 
 -- | Represents a parsed log_line_prefix. This is used to extract data from log
 -- entries.
@@ -32,7 +31,7 @@ rdsPrefix =
     (Right p) -> p
 
 data LogLinePrefixComponent
-  = LogLineLiteral BS.ByteString
+  = LogLineLiteral T.Text
   | LogLineEscape LogLinePrefixEscape
   deriving (Show, Eq)
 
@@ -101,7 +100,7 @@ charToEscape 'q' = Just NonSessionStopEscape
 charToEscape '%' = Just LiteralPercentEscape
 charToEscape _ = Nothing
 
-parseLogLinePrefix :: BS.ByteString -> Either String LogLinePrefix
+parseLogLinePrefix :: T.Text -> Either String LogLinePrefix
 parseLogLinePrefix = parseOnly (prefixParser <* endOfInput)
 
 prefixParser :: Parser LogLinePrefix
@@ -122,12 +121,12 @@ parseEscape = do
     (Just e) -> return $ LogLineEscape e
 
 
-prefixRegexString :: LogLinePrefix -> BS.ByteString
-prefixRegexString (LogLinePrefix components) = BS.concat $ map prefixComponentRegex components
+prefixRegexString :: LogLinePrefix -> String
+prefixRegexString (LogLinePrefix components) = concatMap prefixComponentRegex components
 
-prefixComponentRegex :: LogLinePrefixComponent -> BS.ByteString
-prefixComponentRegex (LogLineLiteral lit) = BS.pack $ prefixLiteralRegex $ BS.unpack lit
-prefixComponentRegex (LogLineEscape escape) = "(" <> prefixEscapeRegex escape <> ")"
+prefixComponentRegex :: LogLinePrefixComponent -> String
+prefixComponentRegex (LogLineLiteral lit) = prefixLiteralRegex $ T.unpack lit
+prefixComponentRegex (LogLineEscape escape) = "(" ++ prefixEscapeRegex escape ++ ")"
 
 -- | Escapes parts of literals in the prefix so they don't confuse the regex.
 prefixLiteralRegex :: String -> String
@@ -139,11 +138,11 @@ prefixLiteralRegex ('(':xs) = '\\' : '(' : prefixLiteralRegex xs
 prefixLiteralRegex ('|':xs) = '\\' : '|' : prefixLiteralRegex xs
 prefixLiteralRegex (x:xs) = x : prefixLiteralRegex xs
 
-prefixEscapeRegex :: LogLinePrefixEscape -> BS.ByteString
+prefixEscapeRegex :: LogLinePrefixEscape -> String
 prefixEscapeRegex ApplicationNameEscape = ".*"
 prefixEscapeRegex UserNameEscape = "[0-9a-zA-Z\\_\\[\\]\\-\\.]*"
 prefixEscapeRegex DatabaseNameEscape = "[0-9a-zA-Z\\_\\[\\]\\-\\.]*"
-prefixEscapeRegex RemoteHostWithPortEscape = prefixEscapeRegex RemoteHostEscape <> "[\\(\\d\\)]*"
+prefixEscapeRegex RemoteHostWithPortEscape = prefixEscapeRegex RemoteHostEscape ++ "[\\(\\d\\)]*"
 prefixEscapeRegex RemoteHostEscape =
   "(?:[a-zA-Z0-9\\-\\.]+|\\[local\\]|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|[0-9a-fA-F:]+)?"
 prefixEscapeRegex ProcessIDEscape = "\\d+"
