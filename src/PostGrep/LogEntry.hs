@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 -- | Module to parse entire log entries that possibly scan multiple lines.
 
 module PostGrep.LogEntry
@@ -74,16 +76,23 @@ modifyEntry entry (Statement x) = entry { logEntryStatement = newStatement (logE
   where newStatement Nothing = Just x
         newStatement (Just x') = Just (x' <> x)
 
-parseLogLines :: LogLineParser -> [T.Text] -> [LogEntry]
-parseLogLines parser ts = reverse $ parseLogLines' parser ts [] []
+data LogParseState =
+  LogParseState
+  { currentEntryComponents :: [LogEntryComponent]
+  , previousEntries :: [LogEntry]
+  } deriving (Show)
 
-parseLogLines' :: LogLineParser -> [T.Text] -> [LogEntryComponent] -> [LogEntry] -> [LogEntry]
-parseLogLines' _ [] currentEntry entries = maybeAddEntry currentEntry entries
-parseLogLines' parser (t:ts) currentEntry entries =
-  case parseLine parser t of
-    Nothing -> parseLogLines' parser ts (currentEntry ++ [Statement t]) entries
-    (Just components) ->
-      parseLogLines' parser ts components (maybeAddEntry currentEntry entries)
+parseLogLines :: LogLineParser -> [T.Text] -> [LogEntry]
+parseLogLines parser ts = reverse allEntries
+  where LogParseState{..} = foldl' (parseLogLine parser) (LogParseState [] []) ts
+        allEntries = maybeAddEntry currentEntryComponents previousEntries
+
+parseLogLine :: LogLineParser -> LogParseState -> T.Text -> LogParseState
+parseLogLine parser LogParseState{..} line =
+  case parseLine parser line of
+    Nothing -> LogParseState (currentEntryComponents ++ [Statement line]) previousEntries
+    (Just newComponents) ->
+      LogParseState newComponents (maybeAddEntry currentEntryComponents previousEntries)
 
 maybeAddEntry :: [LogEntryComponent] -> [LogEntry] -> [LogEntry]
 maybeAddEntry currentEntry entries =
