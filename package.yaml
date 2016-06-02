@@ -18,10 +18,9 @@ extra-source-files:
 
 dependencies:
   - base >= 4.8 && < 5
-  - array
   - attoparsec
   - bytestring
-  - regex-pcre-builtin
+  - pcre-light
   - text
 
 library:

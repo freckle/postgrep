@@ -10,11 +10,11 @@ module PostGrep.LogLine
   , parseLine
   ) where
 
-import Data.Array (elems)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import Text.Regex.PCRE
+import Text.Regex.PCRE.Light
 
 import PostGrep.LogPrefix
 
@@ -53,19 +53,12 @@ data LogLevel
 
 parseLine :: LogLineParser -> BS.ByteString -> Maybe [LogEntryComponent]
 parseLine (LogLineParser regex consumers) t =
-  case parseLine' t regex of
-    [] -> Nothing
-    [_] -> Nothing
-    -- In the pcre regex lib, the first match is the entire string, so we throw
-    -- it away as we only want the specific groups.
-    (_:xs) -> Just $ fmap (\(c, m) -> c (TE.decodeUtf8 m)) (zip consumers xs)
-
-parseLine' :: BS.ByteString -> Regex -> [BS.ByteString]
-parseLine' t regex =
-  case matches of
-    [] -> []
-    (x:_) -> map fst $ elems x
-  where matches = matchAllText regex t
+  case match regex t [] of
+    Nothing -> Nothing
+    Just [] -> Nothing
+    -- In libpcre, the first match is the entire string, so we throw it away as
+    -- we only want the captured groups.
+    Just (_:xs) -> Just $ fmap (\(c, m) -> c (TE.decodeUtf8 m)) (zip consumers xs)
 
 data LogLineParseComponent
   = PrefixComponent LogLinePrefixComponent
@@ -80,7 +73,7 @@ logLineParser :: LogLinePrefix -> LogLineParser
 logLineParser (LogLinePrefix prefixComponents) = LogLineParser regex consumers
   where escapeComponents = map PrefixComponent prefixComponents
         components = escapeComponents ++ [LogLevelComponent, StatementComponent]
-        regex = makeRegex $ concatMap parseComponentRegex components
+        regex = compile (BSC.pack $ concatMap parseComponentRegex components) []
         consumers = concatMap parseComponentConsumer components
 
 -- | Produces a regular expression string for the given component. This string
