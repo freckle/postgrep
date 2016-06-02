@@ -8,30 +8,30 @@ module PostGrep.LogEntry
   , parseLogLines
   ) where
 
+import qualified Data.ByteString.Char8 as BS
 import Data.List (foldl')
 import Data.Monoid ((<>))
-import qualified Data.Text as T
 
 import PostGrep.LogLine
 
 data LogEntry =
   LogEntry
-  { logEntryApplicationName :: Maybe T.Text
-  , logEntryUserName :: Maybe T.Text
-  , logEntryDatabaseName :: Maybe T.Text
-  , logEntryRemoteHost :: Maybe T.Text
-  , logEntryRemotePort :: Maybe T.Text
-  , logEntryProcessID :: Maybe T.Text
-  , logEntryTimestamp :: Maybe T.Text
-  , logEntryCommandTag :: Maybe T.Text
-  , logEntrySQLStateErrorCode :: Maybe T.Text
-  , logEntrySessionID :: Maybe T.Text
-  , logEntryLogLineNumber :: Maybe T.Text
-  , logEntryProcessStartTimestamp :: Maybe T.Text
-  , logEntryVirtualTransactionID :: Maybe T.Text
-  , logEntryTransactionID :: Maybe T.Text
+  { logEntryApplicationName :: Maybe BS.ByteString
+  , logEntryUserName :: Maybe BS.ByteString
+  , logEntryDatabaseName :: Maybe BS.ByteString
+  , logEntryRemoteHost :: Maybe BS.ByteString
+  , logEntryRemotePort :: Maybe BS.ByteString
+  , logEntryProcessID :: Maybe BS.ByteString
+  , logEntryTimestamp :: Maybe BS.ByteString
+  , logEntryCommandTag :: Maybe BS.ByteString
+  , logEntrySQLStateErrorCode :: Maybe BS.ByteString
+  , logEntrySessionID :: Maybe BS.ByteString
+  , logEntryLogLineNumber :: Maybe BS.ByteString
+  , logEntryProcessStartTimestamp :: Maybe BS.ByteString
+  , logEntryVirtualTransactionID :: Maybe BS.ByteString
+  , logEntryTransactionID :: Maybe BS.ByteString
   , logEntryLogLevel :: Maybe LogLevel
-  , logEntryStatement :: Maybe T.Text
+  , logEntryStatement :: Maybe BS.ByteString
   } deriving (Show, Eq)
 
 makeEntry :: [LogEntryComponent] -> LogEntry
@@ -82,12 +82,12 @@ data LogParseState =
   , previousEntries :: [LogEntry]
   } deriving (Show)
 
-parseLogLines :: LogLineParser -> [T.Text] -> [LogEntry]
+parseLogLines :: LogLineParser -> [BS.ByteString] -> [LogEntry]
 parseLogLines parser ts = reverse allEntries
   where LogParseState{..} = foldl' (parseLogLine parser) (LogParseState [] []) ts
         allEntries = maybeAddEntry currentEntryComponents previousEntries
 
-parseLogLine :: LogLineParser -> LogParseState -> T.Text -> LogParseState
+parseLogLine :: LogLineParser -> LogParseState -> BS.ByteString -> LogParseState
 parseLogLine parser LogParseState{..} line =
   case parseLine parser line of
     Nothing -> LogParseState (currentEntryComponents ++ [Statement line]) previousEntries
