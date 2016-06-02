@@ -16,7 +16,8 @@ spec =
       parseLine parser "myapp[my_db]@10.0.120.51(52094):SELECT:LOG: Hello" `shouldBe`
         Just [ ApplicationName "myapp"
              , DatabaseName "my_db"
-             , RemoteHost "10.0.120.51(52094)"
+             , RemoteHost "10.0.120.51"
+             , RemotePort "52094"
              , CommandTag "SELECT"
              , LogLevel LOG
              , Statement "Hello"
