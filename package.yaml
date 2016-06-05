@@ -20,8 +20,10 @@ dependencies:
   - base >= 4.8 && < 5
   - attoparsec
   - bytestring
+  - old-locale
   - pcre-light
   - text
+  - thyme
 
 library:
   source-dirs:

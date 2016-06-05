@@ -10,11 +10,14 @@ module PostGrep.LogLine
   , parseLine
   ) where
 
+import Data.Attoparsec.ByteString
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import Text.Regex.PCRE.Light
+import Data.Thyme
+import System.Locale (defaultTimeLocale)
+import qualified Text.Regex.PCRE.Light as PCRE
 
 import PostGrep.LogPrefix
 
@@ -25,7 +28,7 @@ data LogEntryComponent
   | RemoteHost T.Text
   | RemotePort T.Text
   | ProcessID T.Text
-  | Timestamp T.Text
+  | Timestamp UTCTime
   | CommandTag T.Text
   | SQLStateErrorCode T.Text
   | SessionID T.Text
@@ -54,12 +57,12 @@ data LogLevel
 
 parseLine :: LogLineParser -> BS.ByteString -> Maybe [LogEntryComponent]
 parseLine (LogLineParser regex consumers) t =
-  case match regex t [] of
+  case PCRE.match regex t [] of
     Nothing -> Nothing
     Just [] -> Nothing
     -- In libpcre, the first match is the entire string, so we throw it away as
     -- we only want the captured groups.
-    Just (_:xs) -> Just $ fmap (\(c, m) -> c (TE.decodeUtf8 m)) (zip consumers xs)
+    Just (_:xs) -> Just $ fmap (\(c, m) -> c m) (zip consumers xs)
 
 data LogLineParseComponent
   = PrefixComponent LogLinePrefixComponent
@@ -69,13 +72,13 @@ data LogLineParseComponent
 
 -- | A pair of a compiled regex and a list of consumers for the matched groups
 -- in that regex.
-data LogLineParser = LogLineParser Regex [T.Text -> LogEntryComponent]
+data LogLineParser = LogLineParser PCRE.Regex [BS.ByteString -> LogEntryComponent]
 
 logLineParser :: LogLinePrefix -> LogLineParser
 logLineParser (LogLinePrefix prefixComponents) = LogLineParser regex consumers
   where escapeComponents = map PrefixComponent prefixComponents
         components = escapeComponents ++ [LogLevelComponent, DurationComponent, StatementComponent]
-        regex = compile (BSC.pack $ concatMap parseComponentRegex components) []
+        regex = PCRE.compile (BSC.pack $ concatMap parseComponentRegex components) []
         consumers = concatMap parseComponentConsumer components
 
 -- | Produces a regular expression string for the given component. This string
@@ -137,25 +140,31 @@ prefixLiteralRegex (x:xs) = x : prefixLiteralRegex xs
 -- | This function gives zero or more group consumers for matched groups. This
 -- function is very tightly coupled with 'parseComponentRegex'; the number of
 -- groups in the regex must match the number of consumers here.
-parseComponentConsumer :: LogLineParseComponent -> [T.Text -> LogEntryComponent]
-parseComponentConsumer LogLevelComponent = [LogLevel . read . T.unpack]
-parseComponentConsumer DurationComponent = [Duration]
-parseComponentConsumer StatementComponent = [Statement]
+parseComponentConsumer :: LogLineParseComponent -> [BS.ByteString -> LogEntryComponent]
+parseComponentConsumer LogLevelComponent = [LogLevel . read . T.unpack . TE.decodeUtf8]
+parseComponentConsumer DurationComponent = [Duration . TE.decodeUtf8]
+parseComponentConsumer StatementComponent = [Statement . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineLiteral _)) = []
-parseComponentConsumer (PrefixComponent (LogLineEscape ApplicationNameEscape)) = [ApplicationName]
-parseComponentConsumer (PrefixComponent (LogLineEscape UserNameEscape)) = [UserName]
-parseComponentConsumer (PrefixComponent (LogLineEscape DatabaseNameEscape)) = [DatabaseName]
-parseComponentConsumer (PrefixComponent (LogLineEscape RemoteHostWithPortEscape)) = [RemoteHost, RemotePort]
-parseComponentConsumer (PrefixComponent (LogLineEscape RemoteHostEscape)) = [RemoteHost]
-parseComponentConsumer (PrefixComponent (LogLineEscape ProcessIDEscape)) = [ProcessID]
-parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithoutMillisecondsEscape)) = [Timestamp]
-parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithMillisecondsEscape)) = [Timestamp]
-parseComponentConsumer (PrefixComponent (LogLineEscape CommandTagEscape)) = [CommandTag]
-parseComponentConsumer (PrefixComponent (LogLineEscape SQLStateErrorCodeEscape)) = [SQLStateErrorCode]
-parseComponentConsumer (PrefixComponent (LogLineEscape SessionIDEscape)) = [SessionID]
-parseComponentConsumer (PrefixComponent (LogLineEscape LogLineNumberEscape)) = [LogLineNumber]
-parseComponentConsumer (PrefixComponent (LogLineEscape ProcessStartTimestampEscape)) = [ProcessStartTimestamp]
-parseComponentConsumer (PrefixComponent (LogLineEscape VirtualTransactionIDEscape)) = [VirtualTransactionID]
-parseComponentConsumer (PrefixComponent (LogLineEscape TransactionIDEscape)) = [TransactionID]
+parseComponentConsumer (PrefixComponent (LogLineEscape ApplicationNameEscape)) = [ApplicationName . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape UserNameEscape)) = [UserName . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape DatabaseNameEscape)) = [DatabaseName . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape RemoteHostWithPortEscape)) = [RemoteHost . TE.decodeUtf8, RemotePort . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape RemoteHostEscape)) = [RemoteHost . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape ProcessIDEscape)) = [ProcessID . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithoutMillisecondsEscape)) = [Timestamp . parseUTCTime "%F %T"]
+parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithMillisecondsEscape)) = [Timestamp . parseUTCTime "%F %T%Q"]
+parseComponentConsumer (PrefixComponent (LogLineEscape CommandTagEscape)) = [CommandTag . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape SQLStateErrorCodeEscape)) = [SQLStateErrorCode . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape SessionIDEscape)) = [SessionID . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape LogLineNumberEscape)) = [LogLineNumber . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape ProcessStartTimestampEscape)) = [ProcessStartTimestamp . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape VirtualTransactionIDEscape)) = [VirtualTransactionID . TE.decodeUtf8]
+parseComponentConsumer (PrefixComponent (LogLineEscape TransactionIDEscape)) = [TransactionID . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape NonSessionStopEscape)) = []
 parseComponentConsumer (PrefixComponent (LogLineEscape LiteralPercentEscape)) = []
+
+
+parseUTCTime :: String -> BS.ByteString -> UTCTime
+parseUTCTime format timeString = either error buildTime parsed
+  where parser = timeParser defaultTimeLocale format
+        parsed = parseOnly parser timeString

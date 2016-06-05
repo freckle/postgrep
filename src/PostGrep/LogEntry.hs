@@ -13,6 +13,7 @@ import Data.List (foldl')
 import Data.Monoid ((<>))
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
+import Data.Thyme
 
 import PostGrep.LogLine
 
@@ -24,7 +25,7 @@ data LogEntry =
   , logEntryRemoteHost :: Maybe T.Text
   , logEntryRemotePort :: Maybe T.Text
   , logEntryProcessID :: Maybe T.Text
-  , logEntryTimestamp :: Maybe T.Text
+  , logEntryTimestamp :: Maybe UTCTime
   , logEntryCommandTag :: Maybe T.Text
   , logEntrySQLStateErrorCode :: Maybe T.Text
   , logEntrySessionID :: Maybe T.Text
