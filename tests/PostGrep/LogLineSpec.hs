@@ -38,3 +38,10 @@ spec =
              , Duration ""
              , Statement ""
              ]
+    it "Returns Nothing when regex parse fails" $ do
+      let (Right prefix) = parseLogLinePrefix "%a[%d]"
+      parseLine (logLineParser prefix) "this is dumbLOG:" `shouldBe` Nothing
+
+    it "Returns Nothing when component timestamp is malformed" $ do
+      let (Right prefix) = parseLogLinePrefix "%t:"
+      parseLine (logLineParser prefix) "2016-bad-time 00:00:00 UTC:LOG:" `shouldBe` Nothing
