@@ -1,5 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-
 -- | Module to parse entire log entries that possibly scan multiple lines.
 
 module PostGrep.LogEntry
@@ -9,7 +7,7 @@ module PostGrep.LogEntry
   ) where
 
 import qualified Data.ByteString as BS
-import Data.List (foldl')
+import Data.List (foldl', groupBy)
 import Data.Monoid ((<>))
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -82,24 +80,25 @@ modifyEntry entry (Statement x) = entry { logEntryStatement = newStatement (logE
   where newStatement Nothing = Just x
         newStatement (Just x') = Just (x' <> x)
 
-data LogParseState =
-  LogParseState
-  { currentEntryComponents :: [LogEntryComponent]
-  , previousEntries :: [LogEntry]
-  } deriving (Show)
 
 parseLogLines :: LogLineParser -> [BS.ByteString] -> [LogEntry]
-parseLogLines parser ts = reverse allEntries
-  where LogParseState{..} = foldl' (parseLogLine parser) (LogParseState [] []) ts
-        allEntries = maybeAddEntry currentEntryComponents previousEntries
+parseLogLines parser logLines = fmap makeEntry components
+  where parsed = fmap (parseLogLine parser) logLines
+        grouped = groupBy groupParsedLines parsed
+        components = concatMap fst <$> grouped :: [[LogEntryComponent]]
 
-parseLogLine :: LogLineParser -> LogParseState -> BS.ByteString -> LogParseState
-parseLogLine parser LogParseState{..} line =
+data PrefixParseResult = Parsed | NoParse
+
+parseLogLine :: LogLineParser -> BS.ByteString -> ([LogEntryComponent], PrefixParseResult)
+parseLogLine parser line =
   case parseLine parser line of
-    Nothing -> LogParseState (currentEntryComponents ++ [Statement $ TE.decodeUtf8 line]) previousEntries
-    (Just newComponents) ->
-      LogParseState newComponents (maybeAddEntry currentEntryComponents previousEntries)
+    Nothing -> ([Statement $ TE.decodeUtf8 line], NoParse)
+    (Just components) -> (components, Parsed)
 
-maybeAddEntry :: [LogEntryComponent] -> [LogEntry] -> [LogEntry]
-maybeAddEntry currentEntry entries =
-  if null currentEntry then entries else makeEntry currentEntry : entries
+groupParsedLines
+  :: ([LogEntryComponent], PrefixParseResult)
+  -> ([LogEntryComponent], PrefixParseResult)
+  -> Bool
+groupParsedLines (_, Parsed) (_, NoParse) = True
+groupParsedLines (_, NoParse) (_, NoParse) = True
+groupParsedLines _ _ = False
