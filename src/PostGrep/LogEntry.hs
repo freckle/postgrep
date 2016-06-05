@@ -23,19 +23,19 @@ data LogEntry =
   , logEntryUserName :: Maybe T.Text
   , logEntryDatabaseName :: Maybe T.Text
   , logEntryRemoteHost :: Maybe T.Text
-  , logEntryRemotePort :: Maybe T.Text
-  , logEntryProcessID :: Maybe T.Text
+  , logEntryRemotePort :: Maybe Int
+  , logEntryProcessID :: Maybe Int
   , logEntryTimestamp :: Maybe UTCTime
   , logEntryCommandTag :: Maybe T.Text
   , logEntrySQLStateErrorCode :: Maybe T.Text
   , logEntrySessionID :: Maybe T.Text
-  , logEntryLogLineNumber :: Maybe T.Text
+  , logEntryLogLineNumber :: Maybe Integer
   , logEntryProcessStartTimestamp :: Maybe T.Text
   , logEntryVirtualTransactionID :: Maybe T.Text
   , logEntryTransactionID :: Maybe T.Text
   , logEntryLogLevel :: Maybe LogLevel
   , logEntryStatement :: Maybe T.Text
-  , logEntryDuration :: Maybe T.Text
+  , logEntryDurationMilliseconds :: Maybe Double
   } deriving (Show, Eq)
 
 makeEntry :: [LogEntryComponent] -> LogEntry
@@ -58,7 +58,7 @@ makeEntry = foldl' modifyEntry emptyEntry
           , logEntryTransactionID = Nothing
           , logEntryLogLevel = Nothing
           , logEntryStatement = Nothing
-          , logEntryDuration = Nothing
+          , logEntryDurationMilliseconds = Nothing
           }
 
 modifyEntry :: LogEntry -> LogEntryComponent -> LogEntry
@@ -77,7 +77,7 @@ modifyEntry entry (ProcessStartTimestamp x) = entry { logEntryProcessStartTimest
 modifyEntry entry (VirtualTransactionID x) = entry { logEntryVirtualTransactionID = Just x }
 modifyEntry entry (TransactionID x) = entry { logEntryTransactionID = Just x }
 modifyEntry entry (LogLevel x) = entry { logEntryLogLevel = Just x }
-modifyEntry entry (Duration x) = entry { logEntryDuration = Just x }
+modifyEntry entry (DurationMilliseconds x) = entry { logEntryDurationMilliseconds = Just x }
 modifyEntry entry (Statement x) = entry { logEntryStatement = newStatement (logEntryStatement entry) }
   where newStatement Nothing = Just x
         newStatement (Just x') = Just (x' <> x)

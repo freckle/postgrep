@@ -22,10 +22,10 @@ spec =
              , ApplicationName "myapp"
              , DatabaseName "my_db"
              , RemoteHost "10.0.120.51"
-             , RemotePort "52094"
+             , RemotePort 52094
              , CommandTag "SELECT"
              , LogLevel LOG
-             , Duration "0.019 ms"
+             , DurationMilliseconds 0.019
              , Statement "statement: Hello"
              ]
     it "parses prefixes with special chars in variables" $ do
@@ -35,7 +35,6 @@ spec =
         Just [ ApplicationName "stupid|[app_name]"
              , DatabaseName "stupid-db.name-"
              , LogLevel LOG
-             , Duration ""
              , Statement ""
              ]
     it "Returns Nothing when regex parse fails" $ do
