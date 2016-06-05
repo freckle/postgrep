@@ -4,6 +4,8 @@ module PostGrep.LogEntry
   ( LogEntry (..)
   , makeEntry
   , parseLogLines
+  , parseLogLine
+  , groupParsedLines
   ) where
 
 import qualified Data.ByteString as BS

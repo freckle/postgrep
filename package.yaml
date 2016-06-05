@@ -20,8 +20,11 @@ dependencies:
   - base >= 4.8 && < 5
   - attoparsec
   - bytestring
+  - conduit
+  - conduit-extra
   - old-locale
   - pcre-light
+  - resourcet
   - text
   - thyme
 
