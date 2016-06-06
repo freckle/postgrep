@@ -5,6 +5,7 @@
 module PostGrep.LogLine
   ( LogEntryComponent (..)
   , LogLevel (..)
+  , LogType (..)
   , LogLineParser
   , logLineParser
   , parseLine
@@ -56,6 +57,10 @@ data LogLevel
   | LOCATION
   deriving (Show, Eq, Read)
 
+data LogType
+  = Stderr
+  | Syslog
+  | Syslog2
 
 parseLine :: LogLineParser -> BS.ByteString -> Maybe [LogEntryComponent]
 parseLine (LogLineParser regex consumers) t =
@@ -71,17 +76,31 @@ data LogLineParseComponent
   | LogLevelComponent
   | DurationComponent
   | StatementComponent
+  | SyslogTimestampComponent
+  | SyslogPidComponent
+  | SyslogSessionLineComponent
 
 -- | A pair of a compiled regex and a list of consumers for the matched groups
 -- in that regex.
 data LogLineParser = LogLineParser PCRE.Regex [BS.ByteString -> Maybe LogEntryComponent]
 
-logLineParser :: LogLinePrefix -> LogLineParser
-logLineParser (LogLinePrefix prefixComponents) = LogLineParser regex consumers
-  where escapeComponents = map PrefixComponent prefixComponents
-        components = escapeComponents ++ [LogLevelComponent, DurationComponent, StatementComponent]
+logLineParser :: LogLinePrefix -> LogType -> LogLineParser
+logLineParser (LogLinePrefix prefixComponents) logType = LogLineParser regex consumers
+  where components = logParseComponents logType prefixComponents
         regex = PCRE.compile (BSC.pack $ concatMap parseComponentRegex components) []
         consumers = concatMap parseComponentConsumer components
+
+-- | Builds the correct parse components based on the log type
+logParseComponents :: LogType -> [LogLinePrefixComponent] -> [LogLineParseComponent]
+logParseComponents Stderr prefixComponents =
+  map PrefixComponent prefixComponents ++
+  [LogLevelComponent, DurationComponent, StatementComponent]
+logParseComponents Syslog prefixComponents =
+  [SyslogTimestampComponent, PrefixComponent (LogLineEscape RemoteHostWithPortEscape),
+  PrefixComponent (LogLineEscape UserNameEscape), SyslogPidComponent,
+  SyslogSessionLineComponent] ++
+  map PrefixComponent prefixComponents ++
+  [LogLevelComponent, DurationComponent, StatementComponent]
 
 -- | Produces a regular expression string for the given component. This string
 -- may contain zero or more groups.
@@ -92,6 +111,12 @@ parseComponentRegex DurationComponent =
   "\\s*(?:duration: )?([\\d\\.]+)?(?: ms)?"
 parseComponentRegex StatementComponent =
   "\\s*(.*)"
+parseComponentRegex SyslogTimestampComponent =
+  "([a-zA-Z]+\\s\\d{2} \\d{2}:\\d{2}:\\d{2})" -- No year
+parseComponentRegex SyslogPidComponent =
+  "\\s*\\[(\\d*)\\]:"
+parseComponentRegex SyslogSessionLineComponent =
+  "\\s*\\[(\\d+)\\-\\d+\\]\\s*"
 parseComponentRegex (PrefixComponent (LogLineLiteral lit)) =
   prefixLiteralRegex $ T.unpack lit
 parseComponentRegex (PrefixComponent (LogLineEscape ApplicationNameEscape)) =
@@ -145,6 +170,8 @@ prefixLiteralRegex (x:xs) = x : prefixLiteralRegex xs
 parseComponentConsumer :: LogLineParseComponent -> [BS.ByteString -> Maybe LogEntryComponent]
 parseComponentConsumer LogLevelComponent = [readComponentMaybe LogLevel]
 parseComponentConsumer DurationComponent = [readComponentMaybe DurationMilliseconds]
+parseComponentConsumer SyslogTimestampComponent = [fmap Timestamp . parseUTCTime "%b %e %T"]
+parseComponentConsumer SyslogPidComponent = [readComponentMaybe ProcessID]
 parseComponentConsumer StatementComponent = [Just . Statement . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineLiteral _)) = []
 parseComponentConsumer (PrefixComponent (LogLineEscape ApplicationNameEscape)) = [Just . ApplicationName . TE.decodeUtf8]
