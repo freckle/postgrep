@@ -23,15 +23,11 @@ parseTimeStamp bs = do
   ((year, month, day), restDate) <- parseYearMonthDay bs
   day' <- gregorianValid (YearMonthDay year month day)
   (_, restSpace) <- parseSpace restDate
-  ((h, m, s), restTime) <- parseHourMinSec restSpace
-  let (ms, _) = case parseMilliseconds restTime of
-                     Nothing -> (0, restTime)
-                     (Just (ms', rest')) -> (ms', rest')
-      secondsDiff =
+  ((h, m, s), _) <- parseHourMinSec restSpace
+  let secondsDiff =
         fromIntegral h * 60 * 60 +
         fromIntegral m * 60 +
-        fromIntegral s +
-        fromIntegral ms / 1000 :: Double
+        s
       diffTime = fromSeconds secondsDiff :: DiffTime
   return $ mkUTCTime day' diffTime
 
@@ -58,20 +54,21 @@ parseYearMonthDay bs = do
   (day, rest) <- int restDash2
   return ((year, month, day), rest)
 
-parseHourMinSec :: Parser (Int, Int, Int)
+parseHourMinSec :: Parser (Int, Int, Double)
 parseHourMinSec bs = do
   (hour, restHour) <- int bs
   (_, restColon1) <- parseChar ':' restHour
   (minute, restMinute) <- int restColon1
   (_, restColon2) <- parseChar ':' restMinute
-  (second, rest) <- int restColon2
+  (second, rest) <- double restColon2
   return ((hour, minute, second), rest)
 
-parseMilliseconds :: Parser Int
-parseMilliseconds bs = do
-  (_, restDot) <- parseChar '.' bs
-  (ms, rest) <- int restDot
-  return (ms, rest)
+
+-- parseMilliseconds :: Parser Double
+-- parseMilliseconds bs = do
+--   (_, restDot) <- parseChar '.' bs
+--   (ms, rest) <- double ("0." <> restDot)
+--   return (ms, rest)
 
 
 -- | Tries to parse a short 3-letter month name and returns the 0-based index

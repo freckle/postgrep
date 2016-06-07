@@ -42,6 +42,7 @@ tests:
       - postgrep-core
       - hspec
       - HUnit
+      - old-locale
   style:
     main: HLint.hs
     source-dirs:
