@@ -16,9 +16,9 @@ dependencies:
     - "~/postgrep/.stack-work"
   override:
     - stack setup
-    - stack build --only-dependencies --test --no-run-tests --bench --no-run-benchmarks --jobs=1
+    - stack build --pedantic --only-dependencies --test --no-run-tests --bench --no-run-benchmarks --jobs=1
 
 test:
   override:
-    - stack build --test --jobs=1
+    - stack test --jobs=1
     - stack bench --jobs=1 --benchmark-arguments "--output=bench-output.html"
