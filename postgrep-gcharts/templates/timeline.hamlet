@@ -1,0 +1,24 @@
+$doctype 5
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js">
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['timeline']});
+      google.charts.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var container = document.getElementById('timeline');
+        var chart = new google.visualization.Timeline(container);
+        var dataTable = new google.visualization.DataTable();
+
+        dataTable.addColumn({ type: 'string', id: 'Query' });
+        dataTable.addColumn({ type: 'datetime', id: 'Start' });
+        dataTable.addColumn({ type: 'datetime', id: 'End' });
+        dataTable.addRows([
+        $forall item <- dataItems
+          #{item}
+        ]);
+
+        chart.draw(dataTable);
+      }
+  <body>
+    <div id="timeline">

@@ -1,0 +1,47 @@
+name: postgrep-gcharts
+version: "0.1.0"
+synopsis: Misc visualizations using postgrep and Google Charts
+description: Misc visualizations using postgrep and Google Charts
+category: PostgreSQL
+author: David Reaver
+maintainer: johndreaver@gmail.com
+stability: experimental
+license: MIT
+license-file: LICENSE.md
+
+github: frontrowed/postgrep
+
+extra-source-files:
+  - CHANGELOG.md
+
+dependencies:
+  - base >= 4.8 && < 5
+  - postgrep-core
+  - blaze-html
+  - shakespeare
+  - text
+  - thyme
+
+library:
+  source-dirs:
+    - src
+  ghc-options: -Wall
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - src
+      - tests
+    dependencies:
+      - base
+      - postgrep-gcharts
+      - hspec
+      - HUnit
+  style:
+    main: HLint.hs
+    source-dirs:
+      - tests
+    dependencies:
+      - base
+      - hlint
