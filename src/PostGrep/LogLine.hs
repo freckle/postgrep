@@ -10,7 +10,6 @@ module PostGrep.LogLine
   , parseLine
   ) where
 
-import Data.Attoparsec.ByteString
 import qualified Data.ByteString as BS
 import Data.ByteString.Read
 import qualified Data.ByteString.Char8 as BSC
@@ -18,10 +17,10 @@ import Data.Maybe (catMaybes)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Thyme
-import System.Locale (defaultTimeLocale)
 import qualified Text.Regex.PCRE.Light as PCRE
 
 import PostGrep.LogPrefix
+import PostGrep.ParseTime
 
 data LogEntryComponent
   = ApplicationName T.Text
@@ -153,8 +152,8 @@ parseComponentConsumer (PrefixComponent (LogLineEscape DatabaseNameEscape)) = [J
 parseComponentConsumer (PrefixComponent (LogLineEscape RemoteHostWithPortEscape)) = [Just . RemoteHost . TE.decodeUtf8, \s -> RemotePort . fst <$> integral s]
 parseComponentConsumer (PrefixComponent (LogLineEscape RemoteHostEscape)) = [Just . RemoteHost . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape ProcessIDEscape)) = [\s -> ProcessID . fst <$> integral s]
-parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithoutMillisecondsEscape)) = [fmap Timestamp . parseUTCTime "%F %T"]
-parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithMillisecondsEscape)) = [fmap Timestamp . parseUTCTime "%F %T%Q"]
+parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithoutMillisecondsEscape)) = [fmap Timestamp . parseTimeStamp]
+parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithMillisecondsEscape)) = [fmap Timestamp . parseTimeStamp]
 parseComponentConsumer (PrefixComponent (LogLineEscape CommandTagEscape)) = [Just . CommandTag . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape SQLStateErrorCodeEscape)) = [Just . SQLStateErrorCode . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape SessionIDEscape)) = [Just . SessionID . TE.decodeUtf8]
@@ -165,11 +164,6 @@ parseComponentConsumer (PrefixComponent (LogLineEscape TransactionIDEscape)) = [
 parseComponentConsumer (PrefixComponent (LogLineEscape NonSessionStopEscape)) = []
 parseComponentConsumer (PrefixComponent (LogLineEscape LiteralPercentEscape)) = []
 
-
-parseUTCTime :: String -> BS.ByteString -> Maybe UTCTime
-parseUTCTime format timeString = buildTime <$> maybeResult parsed
-  where parser = timeParser defaultTimeLocale format
-        parsed = parse parser timeString
 
 logLevelFromByteString :: BS.ByteString -> Maybe LogLevel
 logLevelFromByteString "LOG"  = Just LOG
