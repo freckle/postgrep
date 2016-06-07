@@ -20,6 +20,7 @@ dependencies:
   - base >= 4.8 && < 5
   - attoparsec
   - bytestring
+  - bytestring-read
   - conduit
   - conduit-extra
   - old-locale

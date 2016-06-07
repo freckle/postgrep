@@ -12,13 +12,13 @@ module PostGrep.LogLine
 
 import Data.Attoparsec.ByteString
 import qualified Data.ByteString as BS
+import Data.ByteString.Read
 import qualified Data.ByteString.Char8 as BSC
 import Data.Maybe (catMaybes)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Thyme
 import System.Locale (defaultTimeLocale)
-import Text.Read (readMaybe)
 import qualified Text.Regex.PCRE.Light as PCRE
 
 import PostGrep.LogPrefix
@@ -143,22 +143,22 @@ prefixLiteralRegex (x:xs) = x : prefixLiteralRegex xs
 -- function is very tightly coupled with 'parseComponentRegex'; the number of
 -- groups in the regex must match the number of consumers here.
 parseComponentConsumer :: LogLineParseComponent -> [BS.ByteString -> Maybe LogEntryComponent]
-parseComponentConsumer LogLevelComponent = [readComponentMaybe LogLevel]
-parseComponentConsumer DurationComponent = [readComponentMaybe DurationMilliseconds]
+parseComponentConsumer LogLevelComponent = [\s -> LogLevel <$> logLevelFromByteString s]
+parseComponentConsumer DurationComponent = [\s -> DurationMilliseconds . fst <$> double s]
 parseComponentConsumer StatementComponent = [Just . Statement . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineLiteral _)) = []
 parseComponentConsumer (PrefixComponent (LogLineEscape ApplicationNameEscape)) = [Just . ApplicationName . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape UserNameEscape)) = [Just . UserName . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape DatabaseNameEscape)) = [Just . DatabaseName . TE.decodeUtf8]
-parseComponentConsumer (PrefixComponent (LogLineEscape RemoteHostWithPortEscape)) = [Just . RemoteHost . TE.decodeUtf8, readComponentMaybe RemotePort]
+parseComponentConsumer (PrefixComponent (LogLineEscape RemoteHostWithPortEscape)) = [Just . RemoteHost . TE.decodeUtf8, \s -> RemotePort . fst <$> integral s]
 parseComponentConsumer (PrefixComponent (LogLineEscape RemoteHostEscape)) = [Just . RemoteHost . TE.decodeUtf8]
-parseComponentConsumer (PrefixComponent (LogLineEscape ProcessIDEscape)) = [readComponentMaybe ProcessID]
+parseComponentConsumer (PrefixComponent (LogLineEscape ProcessIDEscape)) = [\s -> ProcessID . fst <$> integral s]
 parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithoutMillisecondsEscape)) = [fmap Timestamp . parseUTCTime "%F %T"]
 parseComponentConsumer (PrefixComponent (LogLineEscape TimestampWithMillisecondsEscape)) = [fmap Timestamp . parseUTCTime "%F %T%Q"]
 parseComponentConsumer (PrefixComponent (LogLineEscape CommandTagEscape)) = [Just . CommandTag . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape SQLStateErrorCodeEscape)) = [Just . SQLStateErrorCode . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape SessionIDEscape)) = [Just . SessionID . TE.decodeUtf8]
-parseComponentConsumer (PrefixComponent (LogLineEscape LogLineNumberEscape)) = [readComponentMaybe LogLineNumber]
+parseComponentConsumer (PrefixComponent (LogLineEscape LogLineNumberEscape)) = [\s -> LogLineNumber . fst <$> integral s]
 parseComponentConsumer (PrefixComponent (LogLineEscape ProcessStartTimestampEscape)) = [Just . ProcessStartTimestamp . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape VirtualTransactionIDEscape)) = [Just . VirtualTransactionID . TE.decodeUtf8]
 parseComponentConsumer (PrefixComponent (LogLineEscape TransactionIDEscape)) = [Just . TransactionID . TE.decodeUtf8]
@@ -171,6 +171,15 @@ parseUTCTime format timeString = buildTime <$> maybeResult parsed
   where parser = timeParser defaultTimeLocale format
         parsed = parse parser timeString
 
-
-readComponentMaybe :: (Read a) => (a -> LogEntryComponent) -> BS.ByteString -> Maybe LogEntryComponent
-readComponentMaybe constructor = fmap constructor . readMaybe . T.unpack . TE.decodeUtf8
+logLevelFromByteString :: BS.ByteString -> Maybe LogLevel
+logLevelFromByteString "LOG"  = Just LOG
+logLevelFromByteString "WARNING" = Just WARNING
+logLevelFromByteString "ERROR" = Just ERROR
+logLevelFromByteString "FATAL" = Just FATAL
+logLevelFromByteString "PANIC" = Just PANIC
+logLevelFromByteString "DETAIL" = Just DETAIL
+logLevelFromByteString "STATEMENT" = Just STATEMENT
+logLevelFromByteString "HINT" = Just HINT
+logLevelFromByteString "CONTEXT" = Just CONTEXT
+logLevelFromByteString "LOCATION" = Just LOCATION
+logLevelFromByteString _ = Nothing
