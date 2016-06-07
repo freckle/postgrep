@@ -6,6 +6,7 @@ import qualified Data.ByteString as BS
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import Data.List (intersperse)
+import Data.Maybe (catMaybes)
 
 import PostGrep
 
@@ -13,7 +14,7 @@ setupEnv :: IO ([BS.ByteString], [BS.ByteString], [BS.ByteString])
 setupEnv = do
   let single = shortEntry
       small = concat $ take 1000 $ intersperse longEntry (repeat shortEntry)
-      large = concat $ take 100000 $ intersperse longEntry (repeat shortEntry)
+      large = concat $ take 500000 $ intersperse longEntry (repeat shortEntry)
   return (single, small, large)
 
 shortEntry :: [BS.ByteString]
@@ -31,19 +32,31 @@ longEntry =
 rdsParser :: LogLineParser
 rdsParser = logLineParser rdsPrefix
 
+-- | We are running the filter so we are sure the log entries are fully
+-- created. Without the filter, we don't actually do full parsing.
+listBench :: [BS.ByteString] -> Int
+listBench =
+  length .
+  filter (> 10) .
+  catMaybes .
+  fmap logEntryDurationMilliseconds .
+  parseLogLines rdsParser
+
+
 conduitBench :: [BS.ByteString] -> IO Int
 conduitBench logLines =
   CL.sourceList logLines $=
-  logConduit rdsParser $$
+  logConduit rdsParser $=
+  CL.filter (maybe False (> 10) . logEntryDurationMilliseconds) $$
   CL.fold (\x _ -> x + 1) 0
 
 main :: IO ()
 main = defaultMain [
    -- notice the lazy pattern match here!
    env setupEnv $ \ ~(single, small, large) -> bgroup "main"
-     [ bench "parseLines single" $ nf length (parseLogLines rdsParser single)
-     , bench "parseLines small" $ nf length (parseLogLines rdsParser small)
-     , bench "parseLines large" $ nf length (parseLogLines rdsParser large)
+     [ bench "parseLines single" $ nf listBench single
+     , bench "parseLines small" $ nf listBench small
+     , bench "parseLines large" $ nf listBench large
      , bench "logConduit large" $ nfIO (conduitBench large)
      ]
    ]
