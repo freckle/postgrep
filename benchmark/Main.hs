@@ -56,7 +56,7 @@ main = defaultMain [
    env setupEnv $ \ ~(single, small, large) -> bgroup "main"
      [ bench "parseLines single" $ nf listBench single
      , bench "parseLines small" $ nf listBench small
-     , bench "parseLines large" $ nf listBench large
+     --, bench "parseLines large" $ nf listBench large
      , bench "logConduit large" $ nfIO (conduitBench large)
      ]
    ]
