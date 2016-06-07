@@ -14,6 +14,7 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Read
 import qualified Data.ByteString.Char8 as BSC
 import Data.Maybe (catMaybes)
+import Data.Monoid ((<>))
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import Data.Thyme
@@ -79,7 +80,8 @@ logLineParser :: LogLinePrefix -> LogLineParser
 logLineParser (LogLinePrefix prefixComponents) = LogLineParser regex consumers
   where escapeComponents = map PrefixComponent prefixComponents
         components = escapeComponents ++ [LogLevelComponent, DurationComponent, StatementComponent]
-        regex = PCRE.compile (BSC.pack $ concatMap parseComponentRegex components) []
+        regexString = "^" <> BSC.pack (concatMap parseComponentRegex components)
+        regex = PCRE.compile regexString []
         consumers = concatMap parseComponentConsumer components
 
 -- | Produces a regular expression string for the given component. This string
