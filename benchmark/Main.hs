@@ -3,6 +3,8 @@
 import Criterion.Main
 
 import qualified Data.ByteString as BS
+import Data.Conduit
+import qualified Data.Conduit.List as CL
 import Data.List (intersperse)
 
 import PostGrep
@@ -29,6 +31,12 @@ longEntry =
 rdsParser :: LogLineParser
 rdsParser = logLineParser rdsPrefix
 
+conduitBench :: [BS.ByteString] -> IO Int
+conduitBench logLines =
+  CL.sourceList logLines $=
+  logConduit rdsParser $$
+  CL.fold (\x _ -> x + 1) 0
+
 main :: IO ()
 main = defaultMain [
    -- notice the lazy pattern match here!
@@ -36,5 +44,6 @@ main = defaultMain [
      [ bench "parseLines single" $ nf length (parseLogLines rdsParser single)
      , bench "parseLines small" $ nf length (parseLogLines rdsParser small)
      , bench "parseLines large" $ nf length (parseLogLines rdsParser large)
+     , bench "logConduit large" $ nfIO (conduitBench large)
      ]
    ]
