@@ -5,7 +5,7 @@ machine:
 
 general:
   artifacts:
-    - "~/postgrep/bench-output.html"
+    - "~/postgrep/postgrep-conduit/bench-output.html"
 
 dependencies:
   pre:
@@ -21,4 +21,4 @@ dependencies:
 test:
   override:
     - stack build --test --jobs=1
-    - stack bench --benchmark-arguments "--output=bench-output.html"
+    - stack bench --jobs=1 --benchmark-arguments "--output=bench-output.html"

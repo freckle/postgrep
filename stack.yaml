@@ -1,4 +1,5 @@
 resolver: lts-6.0
 packages:
-  - '.'
+  - 'postgrep-core'
+  - 'postgrep-conduit'
 extra-deps: []

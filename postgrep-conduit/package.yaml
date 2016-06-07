@@ -1,7 +1,7 @@
-name: postgrep
+name: postgrep-conduit
 version: "0.1.0"
-synopsis: Tools to parse potgres logs
-description: Tools to parse potgres logs
+synopsis: Conduit wrapper around postgrep-core parser
+description: Conduit wrapper around postgresp-core parser
 category: PostgreSQL
 author: David Reaver
 maintainer: johndreaver@gmail.com
@@ -13,28 +13,19 @@ github: frontrowed/postgrep
 
 extra-source-files:
   - CHANGELOG.md
-  - README.md
-  - stack.yaml
 
 dependencies:
   - base >= 4.8 && < 5
-  - attoparsec
   - bytestring
-  - bytestring-read
   - conduit
   - conduit-extra
-  - old-locale
-  - pcre-light
+  - postgrep-core
   - resourcet
-  - text
-  - thyme
 
 library:
   source-dirs:
     - src
   ghc-options: -Wall
-  other-modules:
-    - PostGrep.ParseTime
 
 tests:
   spec:
@@ -44,7 +35,7 @@ tests:
       - tests
     dependencies:
       - base
-      - postgrep
+      - postgrep-conduit
       - hspec
       - HUnit
   style:
@@ -59,7 +50,7 @@ benchmarks:
   benchmarks:
     dependencies:
       - base
-      - postgrep
+      - postgrep-conduit
       - criterion
     ghc-options:
       - -rtsopts

@@ -9,6 +9,7 @@ import Data.List (intersperse)
 import Data.Maybe (catMaybes)
 
 import PostGrep
+import PostGrep.Conduit
 
 setupEnv :: IO ([BS.ByteString], [BS.ByteString], [BS.ByteString])
 setupEnv = do

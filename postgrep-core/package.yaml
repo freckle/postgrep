@@ -1,0 +1,51 @@
+name: postgrep-core
+version: "0.1.0"
+synopsis: Library to parse postgres logs
+description: Library to parse postgres logs
+category: PostgreSQL
+author: David Reaver
+maintainer: johndreaver@gmail.com
+stability: experimental
+license: MIT
+license-file: LICENSE.md
+
+github: frontrowed/postgrep
+
+extra-source-files:
+  - CHANGELOG.md
+
+dependencies:
+  - base >= 4.8 && < 5
+  - attoparsec
+  - bytestring
+  - bytestring-read
+  - pcre-light
+  - resourcet
+  - text
+  - thyme
+
+library:
+  source-dirs:
+    - src
+  ghc-options: -Wall
+  other-modules:
+    - PostGrep.ParseTime
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - src
+      - tests
+    dependencies:
+      - base
+      - postgrep-core
+      - hspec
+      - HUnit
+  style:
+    main: HLint.hs
+    source-dirs:
+      - tests
+    dependencies:
+      - base
+      - hlint
