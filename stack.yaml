@@ -1,4 +1,4 @@
-resolver: lts-6.0
+resolver: lts-6.6
 packages:
   - 'postgrep-core'
   - 'postgrep-conduit'
