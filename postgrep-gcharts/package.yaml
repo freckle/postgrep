@@ -21,6 +21,7 @@ dependencies:
   - shakespeare
   - text
   - thyme
+  - vector-space
 
 library:
   source-dirs:
@@ -34,6 +35,11 @@ executables:
     dependencies:
       - base
       - postgrep-gcharts
+      - postgrep-conduit
+      - conduit
+      - conduit-extra
+      - resourcet
+      - safe
 
 tests:
   spec:

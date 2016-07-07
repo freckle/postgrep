@@ -10,6 +10,7 @@ $doctype 5
         var chart = new google.visualization.Timeline(container);
         var dataTable = new google.visualization.DataTable();
 
+        dataTable.addColumn({ type: 'string', id: 'Backend' });
         dataTable.addColumn({ type: 'string', id: 'Query' });
         dataTable.addColumn({ type: 'datetime', id: 'Start' });
         dataTable.addColumn({ type: 'datetime', id: 'End' });
@@ -18,7 +19,10 @@ $doctype 5
           #{item}
         ]);
 
-        chart.draw(dataTable);
+        var options = {
+          'height': 600
+        };
+        chart.draw(dataTable, options);
       }
   <body>
     <div id="timeline">

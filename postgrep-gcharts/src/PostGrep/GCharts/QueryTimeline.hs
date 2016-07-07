@@ -5,29 +5,47 @@
 module PostGrep.GCharts.QueryTimeline
   ( timelineHTML
   , QueryTimelineItem (..)
+  , logEntryToTimelineItem
   ) where
 
+import Data.AffineSpace ((.+^))
 import Data.Monoid ((<>))
-import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy as TL
 import Data.Thyme
 import Text.Hamlet
-import Text.Julius
-import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Text.Blaze.Html (preEscapedToHtml)
 
+import PostGrep
 
 timelineHTML :: [QueryTimelineItem] -> Html
 timelineHTML items = $(shamletFile "templates/timeline.hamlet")
   where dataItems = map timelineRowHtml items
 
 timelineRowHtml :: QueryTimelineItem -> Html
-timelineRowHtml (QueryTimelineItem st et s) = preEscapedToHtml $
-  "['" <> s <> "', new Date(" <> showTime st <> "), new Date(" <> showTime et <> ")],"
-   where showTime t = "\"" <> T.pack (show t) <> "\""
+timelineRowHtml (QueryTimelineItem be s st et) = preEscapedToHtml $
+  "['" <> be' <> "','" <> escapedStatement <> "', new Date(" <> showTime st <> "), new Date(" <> showTime et <> ")],\n"
+   where be' = TL.pack $ show be
+         escapedStatement = TL.replace "'" "\\'" s
+         showTime t = "\"" <> TL.pack (show t) <> "\""
+
 
 data QueryTimelineItem =
   QueryTimelineItem
-  { queryTimelineItemStartTime :: UTCTime
+  { queryTimelineItemBackend :: Int
+  , queryTimelineItemStatement :: TL.Text
+  , queryTimelineItemStartTime :: UTCTime
   , queryTimelineItemEndTime :: UTCTime
-  , queryTImelineItemStatement :: T.Text
   } deriving (Show)
+
+logEntryToTimelineItem :: LogEntry -> Maybe QueryTimelineItem
+logEntryToTimelineItem entry =
+  QueryTimelineItem
+  <$> logEntryProcessID entry
+  <*> (TL.fromStrict <$> logEntryStatement entry)
+  <*> logEntryTimestamp entry
+  <*> endTime
+  where endTime = do
+          startTime <- logEntryTimestamp entry
+          durationMs <- logEntryDurationMilliseconds entry
+          let diffTime = fromSeconds (durationMs / 1000)
+          return $ startTime .+^ diffTime
