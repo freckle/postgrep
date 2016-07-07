@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
@@ -14,26 +15,52 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TIO
 import Data.Thyme
-import Safe (headMay)
+import Options.Applicative
 import System.Environment (getArgs)
 import System.Exit
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 
 main :: IO ()
 main = do
-  filePath <- getArg
+  Options{..} <- execParser $ info (helper <*> parseOptions)
+                 (fullDesc <> progDesc "Timeline visualization of postgres logs")
   let parser = logLineParser rdsPrefix
+      minDurationFilter = maybe (const True) (\md -> maybe False (> md) . logEntryDurationMilliseconds) optMinDurationMs
   items <- runResourceT $
-    CB.sourceFile filePath $=
+    CB.sourceFile optFilePath $=
     CB.lines $=
     logConduit parser $=
-    CL.filter (maybe False (> 100) . logEntryDurationMilliseconds) $=
+    CL.filter minDurationFilter $=
     CL.mapMaybe logEntryToTimelineItem $$
     CL.consume
   print $ length items
-  TIO.writeFile "out.html" $ renderHtml (timelineHTML items)
+  TIO.writeFile optOutputFile $ renderHtml (timelineHTML items)
 
-getArg :: IO String
-getArg = do
-  mFilePath <- headMay <$> getArgs
-  maybe (putStrLn "Usage: postgrep-conduit PATH" >> exitFailure) return mFilePath
+data Options =
+  Options
+  { optFilePath :: String
+  , optOutputFile :: String
+  , optMinDurationMs :: Maybe Double
+  } deriving (Show)
+
+parseOptions :: Parser Options
+parseOptions =
+  Options
+  <$> argument str
+  ( metavar "FILEPATH" <>
+    helpDoc (Just "Path to log file")
+  )
+  <*> option str
+  ( metavar "OUTPUT_FILE" <>
+    long "output" <>
+    short 'o' <>
+    value "out.html" <>
+    helpDoc (Just "File to write generated HTML to")
+  )
+  <*> optional (
+  option auto
+  ( metavar "MIN_DURATION" <>
+    long "minimum-duration" <>
+    short 'm' <>
+    helpDoc (Just "Minimum query duration in milliseconds")
+  ))

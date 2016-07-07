@@ -38,8 +38,8 @@ executables:
       - postgrep-conduit
       - conduit
       - conduit-extra
+      - optparse-applicative
       - resourcet
-      - safe
 
 tests:
   spec:
