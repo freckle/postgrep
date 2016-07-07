@@ -27,6 +27,14 @@ library:
     - src
   ghc-options: -Wall
 
+executables:
+  postgrep-gcharts:
+    main: main.hs
+    source-dirs: app
+    dependencies:
+      - base
+      - postgrep-gcharts
+
 tests:
   spec:
     main: Spec.hs
