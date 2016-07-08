@@ -24,8 +24,13 @@ main :: IO ()
 main = do
   Options{..} <- execParser $ info (helper <*> parseOptions)
                  (fullDesc <> progDesc "Timeline visualization of postgres logs")
-  let parser = logLineParser rdsPrefix
+
+  let ePrefix = maybe (Right rdsPrefix) parseLogLinePrefix optPrefixString
+  prefix <- either fail return ePrefix
+
+  let parser = logLineParser prefix
       minDurationFilter = maybe (const True) (\md -> maybe False (> md) . logEntryDurationMilliseconds) optMinDurationMs
+
   items <- runResourceT $
     CB.sourceFile optFilePath $=
     CB.lines $=
@@ -41,6 +46,7 @@ data Options =
   { optFilePath :: String
   , optOutputFile :: String
   , optMinDurationMs :: Maybe Double
+  , optPrefixString :: Maybe T.Text
   } deriving (Show)
 
 parseOptions :: Parser Options
@@ -63,4 +69,11 @@ parseOptions =
     long "minimum-duration" <>
     short 'm' <>
     helpDoc (Just "Minimum query duration in milliseconds")
+  ))
+  <*> optional (
+  option (T.pack <$> str)
+  ( metavar "LOG_LINE_PREFIX" <>
+    long "log-line-prefix" <>
+    short 'p' <>
+    helpDoc (Just "The log_line_prefix string for your logs. Default is RDS.")
   ))
