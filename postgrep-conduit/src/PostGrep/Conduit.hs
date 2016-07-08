@@ -12,8 +12,7 @@ import Data.Conduit
 import qualified Data.Conduit.Binary as CB
 import qualified Data.Conduit.List as CL
 
-import PostGrep.LogEntry
-import PostGrep.LogLine
+import PostGrep
 
 -- | Creates a Conduit from a given file path. This just splits the file into
 -- lines and feeds it into 'logConduit'.

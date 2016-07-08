@@ -9,32 +9,34 @@ module PostGrep.LogPrefix
   , parseLogLinePrefix
   , LogLinePrefixComponent (..)
   , LogLinePrefixEscape (..)
-  , getEscape
-  , logLinePrefixEscapeChar
   ) where
 
 import Control.Applicative ((<|>))
 import Data.Attoparsec.Text
 import qualified Data.Text as T
 
--- | Represents a parsed log_line_prefix. This is used to extract data from log
--- entries.
+-- | Represents a parsed @log_line_prefix@. This is used to extract data from
+-- log entries.
 newtype LogLinePrefix = LogLinePrefix { unLogLinePrefix :: [LogLinePrefixComponent] }
                       deriving (Show, Eq)
 
--- | Default prefix for AWS RDS.
+-- | Default 'LogLinePrefix' for AWS RDS.
 rdsPrefix :: LogLinePrefix
 rdsPrefix =
   case parseLogLinePrefix "%t:%r:%u@%d:[%p]:" of
     (Left err) -> error $ "Failed to parse RDS log line prefix: " ++ err
     (Right p) -> p
 
+-- | The log line prefix is split up into literal characters, and components
+-- representing escape sequences.
 data LogLinePrefixComponent
   = LogLineLiteral T.Text
   | LogLineEscape LogLinePrefixEscape
   deriving (Show, Eq)
 
--- | Type enumerating the possible escape characters in a log_line_prefix.
+-- | Type enumerating the possible escape characters in a log_line_prefix. See
+-- here:
+-- https://www.postgresql.org/docs/9.6/static/runtime-config-logging.html#GUC-LOG-LINE-PREFIX.
 data LogLinePrefixEscape
   = ApplicationNameEscape
   | UserNameEscape
@@ -99,6 +101,8 @@ charToEscape 'q' = Just NonSessionStopEscape
 charToEscape '%' = Just LiteralPercentEscape
 charToEscape _ = Nothing
 
+-- | Try to parse a given log line prefix string and return some error text on
+-- failure.
 parseLogLinePrefix :: T.Text -> Either String LogLinePrefix
 parseLogLinePrefix = parseOnly (prefixParser <* endOfInput)
 

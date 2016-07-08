@@ -17,6 +17,10 @@ import Data.Thyme
 
 import PostGrep.LogLine
 
+-- | This is the data type representing a fully-parsed log entry. The reason
+-- every field is of type 'Maybe a' is because the presence or absence of each
+-- field is dependent on your @log_line_prefix@ and whether or not the field
+-- was able to be parsed.
 data LogEntry =
   LogEntry
   { logEntryApplicationName :: Maybe T.Text
@@ -82,7 +86,10 @@ modifyEntry entry (Statement x) = entry { logEntryStatement = newStatement (logE
   where newStatement Nothing = Just x
         newStatement (Just x') = Just (x' <> x)
 
-
+-- | Parse a list of 'ByteString's into a list of 'LogEntry's. Note that
+-- Postgres log entries generally span more than one line. __NOTE__: You should
+-- probably check out the @postgrep-conduit@ library if you want to do this
+-- parsing more efficiently.
 parseLogLines :: LogLineParser -> [BS.ByteString] -> [LogEntry]
 parseLogLines parser logLines = fmap makeEntry components
   where parsed = fmap (parseLogLine parser) logLines
