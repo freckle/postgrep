@@ -32,9 +32,7 @@ main = do
       minDurationFilter = maybe (const True) (\md -> maybe False (> md) . logEntryDurationMilliseconds) optMinDurationMs
 
   items <- runResourceT $
-    CB.sourceFile optFilePath $=
-    CB.lines $=
-    logConduit parser $=
+    logFileConduit parser optFilePath $=
     CL.filter minDurationFilter $=
     CL.mapMaybe logEntryToTimelineItem $$
     CL.consume
